@@ -39,6 +39,36 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Debug function to analyze API key
+def debug_api_key():
+    """Debug function to analyze the API key for encoding issues"""
+    api_key = os.getenv('GROQ_API_KEY')
+    if not api_key:
+        st.error("No API key found")
+        return
+    
+    st.write("### API Key Debug Information")
+    st.write(f"API key length: {len(api_key)}")
+    st.write(f"API key type: {type(api_key)}")
+    
+    # Check for non-ASCII characters
+    non_ascii_chars = []
+    for i, char in enumerate(api_key):
+        if ord(char) > 127:
+            non_ascii_chars.append((i, char, ord(char), hex(ord(char))))
+    
+    if non_ascii_chars:
+        st.error("Found non-ASCII characters in API key:")
+        for pos, char, ord_val, hex_val in non_ascii_chars:
+            st.error(f"Position {pos}: '{char}' (ord: {ord_val}, hex: {hex_val})")
+    else:
+        st.success("API key contains only ASCII characters")
+    
+    # Show character-by-character breakdown for first 10 chars
+    st.write("First 10 characters breakdown:")
+    for i, char in enumerate(api_key[:10]):
+        st.write(f"Pos {i}: '{char}' (ord: {ord(char)})")
+
 # Initialize Groq client
 @st.cache_resource
 def init_groq_client():
@@ -46,6 +76,33 @@ def init_groq_client():
     if not api_key:
         st.error("⚠️ GROQ_API_KEY environment variable not found. Please set it in Streamlit Cloud secrets.")
         return None
+    
+    # Sanitize the API key to ensure it's pure ASCII
+    try:
+        # Remove any whitespace and ensure ASCII-only
+        api_key = api_key.strip()
+        api_key = api_key.encode('ascii', 'ignore').decode('ascii')
+        
+        # Validate API key format (should be alphanumeric with possible dashes/underscores)
+        if not re.match(r'^[a-zA-Z0-9_-]+$', api_key):
+            st.error("❌ API key contains invalid characters. API key should only contain letters, numbers, dashes, and underscores.")
+            st.error(f"API key length: {len(api_key)}")
+            # Show first and last 4 characters for debugging
+            if len(api_key) > 8:
+                st.error(f"API key preview: {api_key[:4]}...{api_key[-4:]}")
+            return None
+            
+        # Additional validation - typical Groq API keys start with 'gsk_'
+        if not api_key.startswith('gsk_'):
+            st.warning("⚠️ API key doesn't start with 'gsk_' - this might not be a valid Groq API key")
+            
+    except UnicodeDecodeError as e:
+        st.error(f"❌ API key contains non-ASCII characters: {e}")
+        return None
+    except Exception as e:
+        st.error(f"❌ Error sanitizing API key: {e}")
+        return None
+    
     try:
         client = Groq(api_key=api_key)
         # Test the API key with a simple request
@@ -236,6 +293,11 @@ def main():
     # Header
     st.markdown('<h1 class="main-header">📊 PDF to Flowchart Generator</h1>', unsafe_allow_html=True)
     st.markdown('<div class="success-box">🤖 <strong>Powered by Groq AI</strong> - Fast, free, and accurate flowchart generation</div>', unsafe_allow_html=True)
+    
+    # Debug section (expandable)
+    with st.expander("🔧 Debug API Key (Click if you have encoding errors)", expanded=False):
+        if st.button("Debug API Key"):
+            debug_api_key()
     
     # Initialize Groq client
     client = init_groq_client()
