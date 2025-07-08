@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storyboard to Flowchart Generator</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+        
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #64748b;
+            --accent: #06b6d4;
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            --surface: rgba(255, 255, 255, 0.08);
+            --surface-hover: rgba(255, 255, 255, 0.12);
+            --border: rgba(255, 255, 255, 0.1);
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--background);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+            color: var(--text-primary);
+        }
+
+        /* Subtle animated background */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 25% 25%, rgba(37, 99, 235, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 75% 75%, rgba(6, 182, 212, 0.1) 0%, transparent 50%);
+            animation: subtle-float 20s ease-in-out infinite;
+            z-index: 0;
+        }
+
+        @keyframes subtle-float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(1deg); }
+        }
+
+        .container {
+            background: var(--surface);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            box-shadow: 
+                0 25px 50px rgba(0, 0, 0, 0.3),
+                0 0 0 1px var(--border),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            padding: 50px;
+            max-width: 900px;
+            width: 100%;
+            position: relative;
+            z-index: 1;
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+
+        .container:hover {
+            box-shadow: 
+                0 35px 70px rgba(0, 0, 0, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        }
+
+        h1 {
+            text-align: center;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 40px;
+            font-size: 3rem;
+            font-weight: 800;
+            letter-spacing: -1px;
+            line-height: 1.1;
+        }
+
+        .demo-notice {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            padding: 20px;
+            border-radius: 16px;
+            margin-bottom: 35px;
+            color: var(--text-primary);
+            text-align: center;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+        }
+
+        .upload-section {
+            margin-bottom: 40px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: block;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .file-input {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+            z-index: 3;
+        }
+
+        .file-input-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 40px 30px;
+            background: var(--surface);
+            border: 2px dashed var(--border);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            backdrop-filter: blur(10px);
+        }
+
+        .file-input-button:hover {
+            background: var(--surface-hover);
+            border-color: var(--primary);
+            color: var(--text-primary);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(37, 99, 235, 0.15);
+        }
+
+        .file-input-button.active {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border-color: var(--primary);
+            color: white;
+            box-shadow: 0 15px 35px rgba(37, 99, 235, 0.3);
+        }
+
+        .file-name {
+            margin-top: 15px;
+            font-size: 16px;
+            color: var(--text-primary);
+            font-weight: 500;
+            text-align: center;
+            padding: 15px;
+            background: rgba(37, 99, 235, 0.1);
+            border-radius: 12px;
+            border: 1px solid rgba(37, 99, 235, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .upload-btn {
+            width: 100%;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border: none;
+            border-radius: 16px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+            box-shadow: 0 10px 25px rgba(37, 99, 235, 0.25);
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 20px 40px rgba(37, 99, 235, 0.35);
+        }
+
+        .upload-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 30px 0;
+            padding: 40px;
+            background: rgba(37, 99, 235, 0.1);
+            border-radius: 20px;
+            border: 1px solid rgba(37, 99, 235, 0.2);
+            backdrop-filter: blur(15px);
+        }
+
+        .spinner {
+            border: 3px solid rgba(37, 99, 235, 0.2);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        .loading p {
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            display: none;
+            margin-top: 40px;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result-section {
+            margin-bottom: 30px;
+            padding: 30px;
+            background: var(--surface);
+            border-radius: 20px;
+            border-left: 4px solid var(--primary);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            backdrop-filter: blur(15px);
+        }
+
+        .result-section:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+        }
+
+        .result-section h3 {
+            color: var(--text-primary);
+            margin-bottom: 20px;
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+
+        .result-content {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 25px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            max-height: 350px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            color: #1e293b;
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .result-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .result-content::-webkit-scrollbar-track {
+            background: rgba(241, 245, 249, 0.5);
+            border-radius: 4px;
+        }
+
+        .result-content::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 4px;
+        }
+
+        .copy-btn {
+            float: right;
+            padding: 10px 16px;
+            background: var(--secondary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .copy-btn:hover {
+            background: #475569;
+            transform: translateY(-1px);
+        }
+
+        .flowchart-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .flowchart-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px 28px;
+            background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 14px;
+            font-weight: 700;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            min-width: 180px;
+            box-shadow: 0 8px 20px rgba(16, 185, 129, 0.25);
+        }
+
+        .flowchart-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(16, 185, 129, 0.35);
+            text-decoration: none;
+            color: white;
+        }
+
+        .flowchart-btn.mermaid {
+            background: linear-gradient(135deg, var(--accent) 0%, #0891b2 100%);
+            box-shadow: 0 8px 20px rgba(6, 182, 212, 0.25);
+        }
+
+        .flowchart-btn.mermaid:hover {
+            box-shadow: 0 15px 30px rgba(6, 182, 212, 0.35);
+        }
+
+        .instructions {
+            margin-bottom: 20px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 14px;
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+        }
+
+        .instructions strong {
+            color: var(--text-primary);
+            font-weight: 700;
+        }
+
+        .error {
+            display: none;
+            background: rgba(239, 68, 68, 0.1);
+            color: #fecaca;
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            margin-top: 20px;
+            font-weight: 600;
+            backdrop-filter: blur(15px);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 35px;
+                margin: 15px;
+            }
+
+            h1 {
+                font-size: 2.5rem;
+            }
+
+            .file-input-button {
+                padding: 35px 20px;
+                font-size: 16px;
+            }
+
+            .upload-btn {
+                font-size: 16px;
+                padding: 18px;
+            }
+
+            .result-section {
+                padding: 20px;
+            }
+
+            .flowchart-buttons {
+                flex-direction: column;
+            }
+
+            .flowchart-btn {
+                min-width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 15px;
+            }
+
+            .container {
+                padding: 25px;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .result-content {
+                font-size: 12px;
+                padding: 20px;
+                max-height: 250px;
+            }
+        }
+
+        /* Success animation */
+        .success-state {
+            animation: successPulse 1.5s ease-out;
+        }
+
+        @keyframes successPulse {
+            0% { 
+                box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4);
+            }
+            70% { 
+                box-shadow: 0 0 0 15px rgba(37, 99, 235, 0);
+            }
+            100% { 
+                box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Storyboard to Flowchart Generator</h1>
+        
+        <div class="demo-notice">
+            <strong>Live AI Mode Active</strong>
+        </div>
+        
+        <div class="upload-section">
+            <div class="file-input-wrapper">
+                <input type="file" id="fileInput" class="file-input" accept=".pdf">
+                <div class="file-input-button" id="fileInputButton">
+                    Choose PDF Storyboard File
+                </div>
+            </div>
+            <div class="file-name" id="fileName" style="display: none;"></div>
+            <button class="upload-btn" id="uploadBtn" disabled>Generate Flowchart</button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Processing your storyboard with AI...</p>
+        </div>
+
+        <div class="error" id="error"></div>
+
+        <div class="results" id="results">
+            <div class="result-section">
+                <h3>Generated Steps</h3>
+                <div class="result-content" id="stepsContent"></div>
+            </div>
+
+            <div class="result-section">
+                <h3>Flowchart Description</h3>
+                <div class="result-content" id="flowchartContent"></div>
+            </div>
+
+            <div class="result-section">
+                <h3>Mermaid Code</h3>
+                <button onclick="copyMermaidCode()" class="copy-btn">Copy Code</button>
+                <div class="result-content" id="mermaidContent"></div>
+            </div>
+
+            <div class="result-section">
+                <h3>View Flowchart</h3>
+                <div class="instructions">
+                    <strong>Instructions:</strong><br>
+                    • <strong>Mermaid Live:</strong> Click to open the flowchart directly (recommended)<br>
+                    • <strong>Draw.io:</strong> Click to open Draw.io, then go to Arrange → Insert → Advanced → Mermaid and paste the code above
+                </div>
+                <div class="flowchart-buttons">
+                    <a href="#" class="flowchart-btn mermaid" id="mermaidBtn" target="_blank">Open in Mermaid Live</a>
+                    <a href="#" class="flowchart-btn" id="flowchartBtn" target="_blank">Open Draw.io</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const fileInputButton = document.getElementById('fileInputButton');
+        const fileName = document.getElementById('fileName');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const error = document.getElementById('error');
+
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                fileName.textContent = file.name;
+                fileName.style.display = 'block';
+                fileInputButton.classList.add('active');
+                fileInputButton.textContent = 'File Selected';
+                uploadBtn.disabled = false;
+                
+                // Success animation
+                fileInputButton.classList.add('success-state');
+                setTimeout(() => {
+                    fileInputButton.classList.remove('success-state');
+                }, 1500);
+
+                // Add file size info
+                const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+                fileName.textContent += ` (${sizeInMB} MB)`;
+            } else {
+                fileName.style.display = 'none';
+                fileInputButton.classList.remove('active');
+                fileInputButton.textContent = 'Choose PDF Storyboard File';
+                uploadBtn.disabled = true;
+            }
+        });
+
+        fileInputButton.addEventListener('click', function() {
+            fileInput.click();
+        });
+
+        uploadBtn.addEventListener('click', async function() {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            results.style.display = 'none';
+            error.style.display = 'none';
+            loading.style.display = 'block';
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Processing...';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Display results
+                    document.getElementById('stepsContent').textContent = data.steps;
+                    document.getElementById('flowchartContent').textContent = data.flowchart_description;
+                    
+                    // Clean mermaid code
+                    let mermaidCode = data.mermaid_code;
+                    if (mermaidCode.startsWith('```mermaid')) {
+                        mermaidCode = mermaidCode.replace('```mermaid', '').replace('```', '').trim();
+                    }
+                    document.getElementById('mermaidContent').textContent = mermaidCode;
+                    
+                    document.getElementById('flowchartBtn').href = data.drawio_url;
+                    document.getElementById('mermaidBtn').href = data.mermaid_live_url;
+                    
+                    results.style.display = 'block';
+                } else {
+                    error.textContent = data.error || 'An error occurred while processing your file.';
+                    error.style.display = 'block';
+                }
+            } catch (err) {
+                error.textContent = 'Network error: Could not connect to the server.';
+                error.style.display = 'block';
+            } finally {
+                loading.style.display = 'none';
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Generate Flowchart';
+            }
+        });
+        
+        function copyMermaidCode() {
+            const mermaidCode = document.getElementById('mermaidContent').textContent;
+            navigator.clipboard.writeText(mermaidCode).then(function() {
+                const copyBtn = document.querySelector('.copy-btn');
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = 'Copied!';
+                copyBtn.style.background = '#10b981';
+                
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                    copyBtn.style.background = '#64748b';
+                }, 2000);
+            }, function(err) {
+                console.error('Could not copy text: ', err);
+                alert('Could not copy to clipboard. Please copy manually.');
+            });
+        }
+
+        // Drag and drop functionality
+        let dragCounter = 0;
+
+        document.addEventListener('dragenter', function(e) {
+            e.preventDefault();
+            dragCounter++;
+            fileInputButton.style.borderColor = '#2563eb';
+            fileInputButton.style.background = 'rgba(37, 99, 235, 0.1)';
+        });
+
+        document.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            dragCounter--;
+            if (dragCounter === 0) {
+                fileInputButton.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                fileInputButton.style.background = 'rgba(255, 255, 255, 0.08)';
+            }
+        });
+
+        document.addEventListener('dragover', function(e) {
+            e.preventDefault();
+        });
+
+        document.addEventListener('drop', function(e) {
+            e.preventDefault();
+            dragCounter = 0;
+            fileInputButton.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+            fileInputButton.style.background = 'rgba(255, 255, 255, 0.08)';
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type === 'application/pdf') {
+                fileInput.files = files;
+                fileInput.dispatchEvent(new Event('change'));
+            }
+        });
+    </script>
+</body>
+</html>
