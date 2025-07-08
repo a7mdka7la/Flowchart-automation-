@@ -10,7 +10,7 @@ import time
 from io import BytesIO
 import webbrowser
 import urllib.parse
-from groq import Groq
+from openai import OpenAI
 
 # Load environment variables from .env file for local development
 try:
@@ -30,17 +30,20 @@ if os.environ.get('FLASK_ENV') == 'production':
 else:
     logging.basicConfig(level=logging.DEBUG)
 
-# AI API configuration - UPDATED TO USE GROQ API (FREE & FAST!)
-GROQ_API_KEY = os.getenv('GROQ_API_KEY')  # Get from environment variables only
+# AI API configuration - UPDATED TO USE xAI API (X.AI)
+XAI_API_KEY = os.getenv('XAI_API_KEY')  # Get from environment variables only
 
-# Initialize Groq client
+# Initialize xAI client
 try:
-    if not GROQ_API_KEY:
-        raise ValueError("GROQ_API_KEY environment variable is required")
-    client = Groq(api_key=GROQ_API_KEY)
-    print(f"🚀 Groq client initialized successfully")
+    if not XAI_API_KEY:
+        raise ValueError("XAI_API_KEY environment variable is required")
+    client = OpenAI(
+        api_key=XAI_API_KEY,
+        base_url="https://api.x.ai/v1"
+    )
+    print(f"🚀 xAI client initialized successfully")
 except Exception as e:
-    print(f"❌ Failed to initialize Groq client: {e}")
+    print(f"❌ Failed to initialize xAI client: {e}")
     client = None
 
 def extract_text_from_pdf(pdf_file):
@@ -55,13 +58,13 @@ def extract_text_from_pdf(pdf_file):
         print(f"Error extracting text from PDF: {e}")
         return None
 
-def call_groq_api(prompt, max_retries=3, for_mermaid=False):
-    """Make API call to Groq API - FREE, FAST & Dynamic responses for any storyboard"""
-    print(f"🔥 Using Groq API - FREE & FAST!")
+def call_xai_api(prompt, max_retries=3, for_mermaid=False):
+    """Make API call to xAI API - Powerful Grok models"""
+    print(f"🤖 Using xAI API - Grok Models!")
     print(f" Prompt length: {len(prompt)} characters")
     
     if not client:
-        print("❌ Groq client not initialized")
+        print("❌ xAI client not initialized")
         return None
     
     # Dynamic system prompt based on request type
@@ -94,9 +97,9 @@ Create a comprehensive procedure that follows the natural flow described in the 
     
     for attempt in range(max_retries):
         try:
-            print(f"🌐 Making API call to Groq (attempt {attempt + 1}/{max_retries})")
+            print(f"🌐 Making API call to xAI (attempt {attempt + 1}/{max_retries})")
             
-            # Use Groq's chat completions API with dynamic system prompt
+            # Use xAI's chat completions API with dynamic system prompt
             response = client.chat.completions.create(
                 messages=[
                     {
@@ -108,23 +111,23 @@ Create a comprehensive procedure that follows the natural flow described in the 
                         "content": prompt
                     }
                 ],
-                model="llama-3.3-70b-versatile",  # FREE Groq model - very fast!
+                model="grok-beta",  # xAI's Grok model
                 temperature=temperature,
                 max_tokens=4000
             )
             
-            print("✅ Groq API call successful!")
+            print("✅ xAI API call successful!")
             content = response.choices[0].message.content
             print(f"📄 Response preview: {content[:100]}...")
             return content
             
         except Exception as e:
-            print(f"❌ Groq API Error (attempt {attempt + 1}/{max_retries}): {e}")
+            print(f"❌ xAI API Error (attempt {attempt + 1}/{max_retries}): {e}")
             if attempt < max_retries - 1:
                 time.sleep(1)  # Short delay before retry
                 continue
             else:
-                print("❌ All Groq API retry attempts failed")
+                print("❌ All xAI API retry attempts failed")
                 return None
     
     return None
@@ -343,19 +346,19 @@ def health_check():
 
 @app.route('/test-api')
 def test_api():
-    """Test endpoint to check if Groq API is working"""
-    print("🧪 Testing Groq API key...")
-    test_response = call_groq_api("Hello, please respond with 'Groq API is working perfectly!'", for_mermaid=False)
+    """Test endpoint to check if xAI API is working"""
+    print("🧪 Testing xAI API key...")
+    test_response = call_xai_api("Hello, please respond with 'xAI API is working perfectly!'", for_mermaid=False)
     if test_response:
         return jsonify({
             'success': True, 
             'response': test_response,
-            'api_key_status': 'Groq API working!'
+            'api_key_status': 'xAI API working!'
         })
     else:
         return jsonify({
             'success': False, 
-            'error': 'Groq API test failed - check logs'
+            'error': 'xAI API test failed - check logs'
         })
 
 @app.route('/upload', methods=['POST'])
@@ -384,7 +387,7 @@ def upload_file():
             pdf_text = pdf_text[:6000] + "..."
             print(f"⚠️  Text truncated to {len(pdf_text)} characters due to API limits")
         
-        # Step 1: Generate steps from storyboard using Groq
+        # Step 1: Generate steps from storyboard using xAI
         print("🤖 Step 1: Generating steps from storyboard...")
         step1_prompt = f"""Analyze this laboratory storyboard content and extract a clear, organized procedure.
 
@@ -401,13 +404,13 @@ Storyboard content:
 
 Extract a comprehensive procedure that follows the natural flow described in the storyboard."""
         
-        steps_response = call_groq_api(step1_prompt)
+        steps_response = call_xai_api(step1_prompt)
         if not steps_response:
-            return jsonify({'error': 'Failed to generate steps from Groq API. Please check your API key.'}), 500
+            return jsonify({'error': 'Failed to generate steps from xAI API. Please check your API key.'}), 500
         
         print("✅ Step 1 completed: Generated steps")
         
-        # Step 2: Create flowchart description using Groq
+        # Step 2: Create flowchart description using xAI
         print("🤖 Step 2: Creating flowchart representation...")
         step2_prompt = f"""Create a flowchart description that represents this laboratory procedure clearly and logically.
 
@@ -423,13 +426,13 @@ Steps from storyboard:
 
 Create a flowchart description that captures the logical flow and any decision points in the procedure."""
         
-        flowchart_response = call_groq_api(step2_prompt)
+        flowchart_response = call_xai_api(step2_prompt)
         if not flowchart_response:
-            return jsonify({'error': 'Failed to generate flowchart description from Groq API'}), 500
+            return jsonify({'error': 'Failed to generate flowchart description from xAI API'}), 500
         
         print("✅ Step 2 completed: Generated flowchart description")
         
-        # Step 3: Get mermaid code using Groq with special Mermaid-focused prompt
+        # Step 3: Get mermaid code using xAI with special Mermaid-focused prompt
         print("🤖 Step 3: Generating Mermaid code...")
         step3_prompt = f"""Convert this flowchart description to clean Mermaid syntax.
 
@@ -446,9 +449,9 @@ Flowchart description to convert:
 
 Generate clean Mermaid code that represents this flowchart."""
         
-        mermaid_response = call_groq_api(step3_prompt, for_mermaid=True)
+        mermaid_response = call_xai_api(step3_prompt, for_mermaid=True)
         if not mermaid_response:
-            return jsonify({'error': 'Failed to generate mermaid code from Groq API'}), 500
+            return jsonify({'error': 'Failed to generate mermaid code from xAI API'}), 500
         
         # Clean the response to extract only the Mermaid code
         mermaid_response = extract_mermaid_code(mermaid_response)
@@ -490,5 +493,5 @@ if __name__ == '__main__':
     debug = os.environ.get('FLASK_ENV') != 'production'
     print(f"🚀 Starting Flask app on port {port}")
     print(f"🔧 Debug mode: {debug}")
-    print(f"🔑 Groq API Key configured: {'✅ YES' if GROQ_API_KEY else '❌ NO'}")
+    print(f"🔑 xAI API Key configured: {'✅ YES' if XAI_API_KEY else '❌ NO'}")
     app.run(host='0.0.0.0', port=port, debug=debug)

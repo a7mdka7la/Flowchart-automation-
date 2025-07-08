@@ -3,7 +3,7 @@ import PyPDF2
 import os
 import base64
 import re
-from groq import Groq
+from openai import OpenAI
 from io import BytesIO
 
 # Page configuration
@@ -42,7 +42,7 @@ st.markdown("""
 # Debug function to analyze API key
 def debug_api_key():
     """Debug function to analyze the API key for encoding issues"""
-    api_key = os.getenv('GROQ_API_KEY')
+    api_key = os.getenv('XAI_API_KEY')
     if not api_key:
         st.error("No API key found")
         return
@@ -69,12 +69,12 @@ def debug_api_key():
     for i, char in enumerate(api_key[:10]):
         st.write(f"Pos {i}: '{char}' (ord: {ord(char)})")
 
-# Initialize Groq client
+# Initialize xAI client
 @st.cache_resource
-def init_groq_client():
-    api_key = os.getenv('GROQ_API_KEY')
+def init_xai_client():
+    api_key = os.getenv('XAI_API_KEY')
     if not api_key:
-        st.error("⚠️ GROQ_API_KEY environment variable not found. Please set it in Streamlit Cloud secrets.")
+        st.error("⚠️ XAI_API_KEY environment variable not found. Please set it in Streamlit Cloud secrets.")
         return None
     
     # Sanitize the API key to ensure it's pure ASCII
@@ -92,9 +92,9 @@ def init_groq_client():
                 st.error(f"API key preview: {api_key[:4]}...{api_key[-4:]}")
             return None
             
-        # Additional validation - typical Groq API keys start with 'gsk_'
-        if not api_key.startswith('gsk_'):
-            st.warning("⚠️ API key doesn't start with 'gsk_' - this might not be a valid Groq API key")
+        # Additional validation - typical xAI API keys start with 'xai-'
+        if not api_key.startswith('xai-'):
+            st.warning("⚠️ API key doesn't start with 'xai-' - this might not be a valid xAI API key")
             
     except UnicodeDecodeError as e:
         st.error(f"❌ API key contains non-ASCII characters: {e}")
@@ -104,17 +104,20 @@ def init_groq_client():
         return None
     
     try:
-        client = Groq(api_key=api_key)
+        client = OpenAI(
+            api_key=api_key,
+            base_url="https://api.x.ai/v1"
+        )
         # Test the API key with a simple request
         test_response = client.chat.completions.create(
             messages=[{"role": "user", "content": "Hello"}],
-            model="llama-3.3-70b-versatile",
+            model="grok-beta",
             max_tokens=10
         )
-        st.success("✅ Groq API key is valid and working!")
+        st.success("✅ xAI API key is valid and working!")
         return client
     except Exception as e:
-        st.error(f"❌ Failed to initialize Groq client: {e}")
+        st.error(f"❌ Failed to initialize xAI client: {e}")
         st.error("Please check your API key in the Streamlit secrets.")
         return None
 
@@ -160,8 +163,8 @@ def extract_text_from_pdf(pdf_file):
         st.error(f"Error extracting text from PDF: {e}")
         return None
 
-def call_groq_api(client, prompt, for_mermaid=False):
-    """Make API call to Groq API with robust error handling"""
+def call_xai_api(client, prompt, for_mermaid=False):
+    """Make API call to xAI API with robust error handling"""
     if not client:
         return None
     
@@ -227,13 +230,13 @@ Create a comprehensive procedure that follows the natural flow described in the 
                 {"role": "system", "content": system_content},
                 {"role": "user", "content": clean_prompt}
             ],
-            model="llama-3.3-70b-versatile",
+            model="grok-beta",
             temperature=temperature,
             max_tokens=4000
         )
         return response.choices[0].message.content
     except Exception as e:
-        st.error(f"Groq API Error: {e}")
+        st.error(f"xAI API Error: {e}")
         # Try one more time with even simpler text
         try:
             simple_prompt = "Create a laboratory procedure flowchart from the provided document content."
@@ -242,7 +245,7 @@ Create a comprehensive procedure that follows the natural flow described in the 
                     {"role": "system", "content": system_content},
                     {"role": "user", "content": simple_prompt}
                 ],
-                model="llama-3.3-70b-versatile",
+                model="grok-beta",
                 temperature=0.7,
                 max_tokens=2000
             )
@@ -292,15 +295,15 @@ def generate_mermaid_live_url(mermaid_code):
 def main():
     # Header
     st.markdown('<h1 class="main-header">📊 PDF to Flowchart Generator</h1>', unsafe_allow_html=True)
-    st.markdown('<div class="success-box">🤖 <strong>Powered by Groq AI</strong> - Fast, free, and accurate flowchart generation</div>', unsafe_allow_html=True)
+    st.markdown('<div class="success-box">🤖 <strong>Powered by xAI Grok</strong> - Advanced AI flowchart generation</div>', unsafe_allow_html=True)
     
     # Debug section (expandable)
     with st.expander("🔧 Debug API Key (Click if you have encoding errors)", expanded=False):
         if st.button("Debug API Key"):
             debug_api_key()
     
-    # Initialize Groq client
-    client = init_groq_client()
+    # Initialize xAI client
+    client = init_xai_client()
     
     if not client:
         st.stop()
@@ -352,7 +355,7 @@ Storyboard content:
 
 Extract a comprehensive procedure that follows the natural flow described in the storyboard."""
                 
-                steps_response = call_groq_api(client, step1_prompt)
+                steps_response = call_xai_api(client, step1_prompt)
                 if not steps_response:
                     st.error("❌ Failed to generate steps. Please check your API key.")
                     st.stop()
@@ -373,7 +376,7 @@ Steps from storyboard:
 
 Create a flowchart description that captures the logical flow and any decision points in the procedure."""
                 
-                flowchart_response = call_groq_api(client, step2_prompt)
+                flowchart_response = call_xai_api(client, step2_prompt)
                 if not flowchart_response:
                     st.error("❌ Failed to generate flowchart description.")
                     st.stop()
@@ -395,7 +398,7 @@ Flowchart description to convert:
 
 Generate clean Mermaid code that represents this flowchart."""
                 
-                mermaid_response = call_groq_api(client, step3_prompt, for_mermaid=True)
+                mermaid_response = call_xai_api(client, step3_prompt, for_mermaid=True)
                 if not mermaid_response:
                     st.error("❌ Failed to generate Mermaid code.")
                     st.stop()
