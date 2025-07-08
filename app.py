@@ -480,6 +480,10 @@ Generate clean Mermaid code that represents this flowchart."""
         traceback.print_exc()
         return jsonify({'error': f'Error processing file: {str(e)}'}), 500
 
+# Vercel serverless function handler
+def handler(event, context):
+    return app
+
 if __name__ == '__main__':
     # For local development only
     port = int(os.environ.get('PORT', 8000))
