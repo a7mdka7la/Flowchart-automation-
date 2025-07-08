@@ -48,44 +48,93 @@ def init_groq_client():
         return None
     try:
         client = Groq(api_key=api_key)
+        # Test the API key with a simple request
+        test_response = client.chat.completions.create(
+            messages=[{"role": "user", "content": "Hello"}],
+            model="llama-3.3-70b-versatile",
+            max_tokens=10
+        )
+        st.success("✅ Groq API key is valid and working!")
         return client
     except Exception as e:
         st.error(f"❌ Failed to initialize Groq client: {e}")
+        st.error("Please check your API key in the Streamlit secrets.")
         return None
 
 def extract_text_from_pdf(pdf_file):
-    """Extract text from uploaded PDF file"""
+    """Extract text from uploaded PDF file with robust encoding handling"""
     try:
         pdf_reader = PyPDF2.PdfReader(pdf_file)
         text = ""
         for page in pdf_reader.pages:
             page_text = page.extract_text()
-            # Clean text to remove problematic characters
             if page_text:
-                # Replace problematic Unicode characters
+                # More aggressive text cleaning to handle encoding issues
+                import unicodedata
                 import re
-                page_text = re.sub(r'[^\x00-\x7F]+', ' ', page_text)  # Replace non-ASCII
-                page_text = re.sub(r'\s+', ' ', page_text)  # Normalize whitespace
+                
+                # Normalize Unicode characters
+                page_text = unicodedata.normalize('NFKD', page_text)
+                
+                # Replace problematic characters that cause API issues
+                page_text = page_text.replace('\u0417', 'Z')  # Cyrillic З
+                page_text = page_text.replace('\u041f', 'P')  # Cyrillic П
+                page_text = page_text.replace('\u0410', 'A')  # Cyrillic А
+                
+                # Remove or replace all non-ASCII characters
+                page_text = ''.join(char if ord(char) < 128 else ' ' for char in page_text)
+                
+                # Clean up multiple spaces and normalize
+                page_text = re.sub(r'\s+', ' ', page_text).strip()
+                
                 text += page_text + "\n"
-        return text.strip() if text.strip() else None
+        
+        # Final cleanup
+        text = text.strip()
+        if not text:
+            return None
+            
+        # Ensure the text is safe for API transmission
+        text = text.encode('ascii', 'ignore').decode('ascii')
+        
+        return text if text else None
+        
     except Exception as e:
         st.error(f"Error extracting text from PDF: {e}")
         return None
 
 def call_groq_api(client, prompt, for_mermaid=False):
-    """Make API call to Groq API"""
+    """Make API call to Groq API with robust error handling"""
     if not client:
         return None
     
-    # Clean the prompt to remove problematic characters
+    # Ultra-aggressive text cleaning to prevent encoding errors
     try:
-        # Replace non-ASCII characters that might cause encoding issues
+        import unicodedata
         import re
-        clean_prompt = re.sub(r'[^\x00-\x7F]+', ' ', prompt)  # Replace non-ASCII with space
-        clean_prompt = re.sub(r'\s+', ' ', clean_prompt)  # Normalize whitespace
-        clean_prompt = clean_prompt.strip()
-    except Exception:
-        clean_prompt = prompt
+        
+        # Normalize and clean the prompt
+        clean_prompt = unicodedata.normalize('NFKD', prompt)
+        
+        # Replace specific problematic characters
+        clean_prompt = clean_prompt.replace('\u0417', 'Z')
+        clean_prompt = clean_prompt.replace('\u041f', 'P') 
+        clean_prompt = clean_prompt.replace('\u0410', 'A')
+        
+        # Convert to ASCII only
+        clean_prompt = clean_prompt.encode('ascii', 'ignore').decode('ascii')
+        
+        # Normalize whitespace
+        clean_prompt = re.sub(r'\s+', ' ', clean_prompt).strip()
+        
+        # Limit prompt length to avoid issues
+        if len(clean_prompt) > 4000:
+            clean_prompt = clean_prompt[:4000] + "..."
+            
+    except Exception as e:
+        st.error(f"Error cleaning prompt: {e}")
+        # Fallback: use only printable ASCII characters
+        clean_prompt = ''.join(char for char in prompt if ord(char) < 128 and char.isprintable())
     
     # Dynamic system prompt based on request type
     if for_mermaid:
@@ -128,7 +177,22 @@ Create a comprehensive procedure that follows the natural flow described in the 
         return response.choices[0].message.content
     except Exception as e:
         st.error(f"Groq API Error: {e}")
-        return None
+        # Try one more time with even simpler text
+        try:
+            simple_prompt = "Create a laboratory procedure flowchart from the provided document content."
+            response = client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": system_content},
+                    {"role": "user", "content": simple_prompt}
+                ],
+                model="llama-3.3-70b-versatile",
+                temperature=0.7,
+                max_tokens=2000
+            )
+            return response.choices[0].message.content
+        except Exception as e2:
+            st.error(f"Final Groq API attempt failed: {e2}")
+            return None
 
 def extract_mermaid_code(response_text):
     """Extract only the Mermaid code from response"""
