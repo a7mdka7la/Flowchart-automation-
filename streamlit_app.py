@@ -59,8 +59,15 @@ def extract_text_from_pdf(pdf_file):
         pdf_reader = PyPDF2.PdfReader(pdf_file)
         text = ""
         for page in pdf_reader.pages:
-            text += page.extract_text() + "\n"
-        return text
+            page_text = page.extract_text()
+            # Clean text to remove problematic characters
+            if page_text:
+                # Replace problematic Unicode characters
+                import re
+                page_text = re.sub(r'[^\x00-\x7F]+', ' ', page_text)  # Replace non-ASCII
+                page_text = re.sub(r'\s+', ' ', page_text)  # Normalize whitespace
+                text += page_text + "\n"
+        return text.strip() if text.strip() else None
     except Exception as e:
         st.error(f"Error extracting text from PDF: {e}")
         return None
@@ -69,6 +76,16 @@ def call_groq_api(client, prompt, for_mermaid=False):
     """Make API call to Groq API"""
     if not client:
         return None
+    
+    # Clean the prompt to remove problematic characters
+    try:
+        # Replace non-ASCII characters that might cause encoding issues
+        import re
+        clean_prompt = re.sub(r'[^\x00-\x7F]+', ' ', prompt)  # Replace non-ASCII with space
+        clean_prompt = re.sub(r'\s+', ' ', clean_prompt)  # Normalize whitespace
+        clean_prompt = clean_prompt.strip()
+    except Exception:
+        clean_prompt = prompt
     
     # Dynamic system prompt based on request type
     if for_mermaid:
@@ -102,7 +119,7 @@ Create a comprehensive procedure that follows the natural flow described in the 
         response = client.chat.completions.create(
             messages=[
                 {"role": "system", "content": system_content},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": clean_prompt}
             ],
             model="llama-3.3-70b-versatile",
             temperature=temperature,
