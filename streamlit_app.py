@@ -72,8 +72,11 @@ def debug_api_key():
 # Initialize xAI client
 @st.cache_resource
 def init_xai_client():
+    # Force cache refresh by checking if key exists first
     api_key = os.getenv('XAI_API_KEY')
     if not api_key:
+        # Clear cache if no key found
+        st.cache_resource.clear()
         st.error("⚠️ XAI_API_KEY environment variable not found. Please set it in Streamlit Cloud secrets.")
         return None
     
@@ -299,13 +302,25 @@ def main():
     
     # Debug section (expandable)
     with st.expander("🔧 Debug API Key (Click if you have encoding errors)", expanded=False):
-        if st.button("Debug API Key"):
-            debug_api_key()
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Debug API Key"):
+                debug_api_key()
+        with col2:
+            if st.button("🔄 Refresh API Connection"):
+                st.cache_resource.clear()
+                st.success("Cache cleared! The page will refresh to reload the API connection.")
+                st.rerun()
     
     # Initialize xAI client
     client = init_xai_client()
     
+    # If client is None but we can see the API key exists, clear cache and retry
     if not client:
+        api_key_check = os.getenv('XAI_API_KEY')
+        if api_key_check:
+            st.warning("⚠️ API key detected but client initialization failed. Try clicking '🔄 Refresh API Connection' above.")
+            st.info("💡 This usually happens when you just added the API key. The refresh will fix it.")
         st.stop()
     
     # File upload
